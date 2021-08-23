@@ -3,7 +3,7 @@ function eval() {
   return;
 }
 
-const isPairing = (expression, char1, char2) => {
+const checkPairing = (expression, char1, char2) => {
   const openedChar = RegExp(`[${char1}]`, 'g');
   const closedChar = RegExp(`[${char2}]`, 'g');
 
@@ -17,7 +17,11 @@ const isPairing = (expression, char1, char2) => {
   }
 }
 
-const isDivisionByZero = (divider) => {
+const removeSpaces = (expression) => {
+  return expression.replace(/\s/g, '');
+}
+
+const checkDivisionByZero = (divider) => {
   if (divider === 0) {
     return true;
   } else {
@@ -25,13 +29,12 @@ const isDivisionByZero = (divider) => {
   }
 }
 
-const hasPriority = (operator1, operator2) => {
-  if ((operator2 === '(') || (operator2 === ')')) {
+const hasPriority = (priorities, operator1, operator2) => {
+  if (((operator2 === '(') || (operator2 === ')'))) {
     return false;
   }
 
-  if (((operator1 === '*') || (operator1 === '/'))
-   && ((operator2 === '+') || (operator2 === '-'))) {
+  if (priorities[operator1] > priorities[operator2]) {
     return false;
   }
 
@@ -47,7 +50,9 @@ const calculate = (operator, b, a) => {
     case '*':
       return a * b;
     case '/':
-      if (!isDivisionByZero(b)) {
+      const isDivisionByZero = checkDivisionByZero(b);
+
+      if (!isDivisionByZero) {
         return (a / b);
       } else {
         throw new Error('TypeError: Division by zero.');
@@ -58,35 +63,46 @@ const calculate = (operator, b, a) => {
 }
 
 function expressionCalculator(expr) {
-  if (!isPairing(expr, '(', ')')) {
+  const expression = removeSpaces(expr);
+  const exprLength = expression.length;
+
+  const isPairing = checkPairing(expression, '(', ')');
+
+  if (!isPairing) {
     throw new Error('ExpressionError: Brackets must be paired');
   };
 
-  expr = expr.replace(/\s/g, '');
-  const exprLength = expr.length;
-
   const numbers = [];
   const operators = [];
+  const priorities = {
+    '+': 1,
+    '-': 1,
+    '*': 2,
+    '/': 2
+  };
 
   for (let i = 0; i < exprLength; i++) {
-    const isNumber = /\d/.test(expr[i]);
+    const isNumber = /\d/.test(expression[i]);
+    const isOpenedParenthesis = /\(/.test(expression[i]);
+    const isClosedParenthesis = /\)/.test(expression[i]);
+    const isOperator = /[*\/+-]/.test(expression[i]);
 
     if (isNumber) {
       let buffer = '';
 
-      while (/\d/.test(expr[i])) {
-        buffer += expr[i++];
+      while (/\d/.test(expression[i])) {
+        buffer += expression[i++];
       }
 
-      numbers.push(parseInt(buffer));
+      numbers.push(+buffer);
       i--;
     }
 
-    else if (expr[i] === '(') {
-      operators.push(expr[i]);
+    if (isOpenedParenthesis) {
+      operators.push(expression[i]);
     }
 
-    else if (expr[i] === ')') {
+    if (isClosedParenthesis) {
       while (operators[operators.length - 1] !== '(') {
         numbers.push(calculate(operators.pop(), numbers.pop(), numbers.pop()));
       }
@@ -94,13 +110,13 @@ function expressionCalculator(expr) {
       operators.pop();
     }
 
-    else if (/[*\/+-]/.test(expr[i])) {
-      while ((operators.length)
-          && (hasPriority(expr[i], operators[operators.length - 1]))) {
+    if (isOperator) {
+      while (operators.length
+          && hasPriority(priorities, expression[i], operators[operators.length - 1])) {
         numbers.push(calculate(operators.pop(), numbers.pop(), numbers.pop()));
       }
 
-      operators.push(expr[i]);
+      operators.push(expression[i]);
     }
   }
 
